@@ -99,7 +99,7 @@ getPoint = function () {
     return [tmpArrCopy, pointArr, needCur];
 };
 
-getTrend1h = function () {
+getTrend = function (two) {
     var ret = getPoint()
     var tmpArr = ret[0]
     var arr = ret[1] //pointarr
@@ -112,9 +112,14 @@ getTrend1h = function () {
     var countArr = []
     var c1 = 0
     var c2 = 0
+    var c3 = -1
+    var buystatus = -1
+    var sellstatus = -1
     var flag = -1
     var start = 0
     var reverse = 0
+    var archor = 0
+    var arrCopy = [];
 
     arr.shift();
     if (tmpArr[arr[0]] < tmpArr[arr[1]] && tmpArr[arr[2]] < tmpArr[arr[0]]) {
@@ -131,15 +136,16 @@ getTrend1h = function () {
         direction = 0
     }
 
+    arrCopy = arr;
     start = arr[arr.length - 1] + 1
-    arr.pop()
-
+    archor = arr.pop()
     for (i = start; i < tmpArr.length; i++) {
         if (tmpArr[i] > tmpArr[i - 1]) {
             c1 += 1;
             if (tmpArr[i] > tmpArr[i-3] && tmpArr[i-1] < tmpArr[i-2] && tmpArr[i-2] < tmpArr[i-3] && tmpArr[i-2] > arr[arr.length-1]) {
                 arr.push(i - 1)
                 needCur = 0
+                c1 = 2
                 c2 = 0;
             } 
             if (tmpArr[i - 1] > tmpArr[i - 2] && tmpArr[i - 2] > arr[arr.length - 1]) {
@@ -162,6 +168,7 @@ getTrend1h = function () {
                 arr.push(i - 1)
                 needCur = 1
                 c1 = 0;
+                c2 = 2;
             }
             if (tmpArr[i - 1] < tmpArr[i - 2] && tmpArr[i - 2] > arr[arr.length - 1]) {
                 c1 = 0;
@@ -180,21 +187,35 @@ getTrend1h = function () {
         }
     }
 
+    if (c2 == 1) {
+        if (tmpArr[tmpArr.length-1] < tmpArr[tmpArr.length-2]) {
+            c3 = 1;
+        }
+    } else if (c1 == 1) {
+        if (tmpArr[tmpArr.length-1] > tmpArr[tmpArr.length-2]) {
+            c3 = 1;
+        }
+    }
+
+
     if (tmpArr[i] > tmpArr[i - 1] && tmpArr[i - 1] < tmpArr[i - 2] && tmpArr[i] > tmpArr[i - 2]) {
         flag = 1;
     } else if (tmpArr[i] < tmpArr[i - 1] && tmpArr[i - 1] > tmpArr[i - 2] && tmpArr[i] < tmpArr[i - 2]) {
         flag = 0;
     }
 
+    if (two == 1) {
+        arr = arrCopy;
+    }
     for (var i = 1; i < arr.length; i += 2) {
         if (i + 2 < arr.length) {
             if (direction == 0) {
                 if (tmpArr[arr[i]] > tmpArr[arr[i + 2]]) {
-                    count += 1
+                    count += 1;
                     extremum = arr[i + 2];
                 } else {
                     direction = 1;
-                    countArr.push(count)
+                    countArr.push(count);
                     count = 1;
                     extremum = arr[i];
                     trendArr.push(extremum);
@@ -214,47 +235,261 @@ getTrend1h = function () {
         } else {
             if (i == arr.length-1) {
                 onHalf = 1;
-                if (direction == 1) {
-                    if (tmpArr[arr[i]] < tmpArr[arr[i - 2]]) {
-                        direction = 0;
-                        count = 1;
-                    }
-                } else {
-                    if (tmpArr[arr[i]] > tmpArr[arr[i - 2]]) {
-                        direction = 1;
-                        count = 1;
-                    }
-                }
             } else {
                 onHalf = 0;
-                if (direction == 1) {
-                    if (tmpArr[arr[i-1]] > tmpArr[arr[i+1]] && tmpArr[arr[i-2+1] > tmpArr[arr[i-2-1]]]) {
-                        direction = 0
-                        count = 1
-                    }
-                } else {
-                    if (tmpArr[arr[i-1]] < tmpArr[arr[i+1]]) {
-                        direction = 1
-                        count = 1;
-                    }
+            }
+
+            if (direction == 1) {
+                if (tmpArr[arr[i]] < tmpArr[arr[i - 2]]) {
+                    reverse = 1;
+                    direction = 0;
+                    count = 1;
+                }
+            } else {
+                if (tmpArr[arr[i]] > tmpArr[arr[i - 2]]) {
+                    reverse = 1;
+                    direction = 1;
+                    count = 1;
                 }
             }
+
             trendArr.push(arr[i]);
             countArr.push(count);
+
+            if (countArr[countArr.length - 1] > 2 && onHalf == 0) {
+                if (tmpArr[arr[i-1]] > tmpArr[arr[i+1]] && direction == 1) {
+                    reverse = 1;
+                } else if (tmpArr[arr[i-1]] < tmpArr[arr[i+1]] && direction == 0) {
+                    reverse = 1;
+                }
+            }
         }
     }
 
-    if (countArr[countArr.length - 1] == 1) {
-        if (countArr[countArr.length - 2] > 1) {
-            reverse = 1
+    return {'archor': archor, 'c1': c1, 'c2': c2, 'flag': flag, 'reverse': reverse, 'needCur': needCur, \
+    'direction': direction, 'trendArr': trendArr, 'countArr': countArr, 'valueArr': tmpArr, 'pointArr' : arr, 'onHalf': onHalf}
+};
+
+getLocation = function () {
+    ret1h = getTrend('1h')
+    ret15m = getTrend('15m')
+    ret1m = getTrend('1m')
+    return {'h1sec': ret1h.archor, 'h1point': ret1h.valueArr[ret1h.valueArr.length - 1], \
+    'm15sec': ret15m.archor, 'm15point': ret15m.valueArr.[ret15m.valueArr.length -1], \
+    'm1sec': ret1m.archor, 'm1point': ret1m.valueArr[ret1m.valueArr.length - 1]};
+}
+
+
+
+buyCur1 = -1
+sec1 = 0
+buyStatus = {'buy': -1, 'low': 0, 'high': 0, 'uptimes': 0, 'downtimes': 0, '1perid': 0, 'waitreverse':0}
+
+sync15m = function () {
+    ret = getTrend(15)
+    if (buyCur1 == -1) {
+        buyCur1 = ret.buyCur
+    } 
+    if (sec1 == 0) {
+        sec1 = ret.archor
+    }
+
+    if (buyCur1 != ret.buyCur) {
+        if (buyCur1 == 0) {
+            buyCur1 = 1
         } else {
-            if (tmpArr[]) {
+            buyCur1 = 0
+        }
+    }
+    if (sec1 != ret.sec) {
+        sec1 = ret.sec
+    }
+    if (buyCur1 != ret.buyCur || sec1 != ret.sec) {
+        return 
+    }
+
+    if (ret.valueArr[ret.valueArr.length - 1] > ret.valueArr[ret.valueArr.length - 2]) {
+        if (buyStatus.buy == 1) {
+            if (ret.c1 == 1) {
+                if (buyStatus.low == 0) {
+                    buystatus.low = ret.pointArr[ret.pointArr.length -1]
+                }
+            } else if (ret.c1 == 2) {
+
+            } else if (ret.c1 > 2) {
+
+            }
+        } else {
+
+        }
+    } else {
+
+    }
+
+}
+
+var location = {};
+if (ret1h.direction == 1) {
+    if (ret15m.direction == 1) {
+        if (ret1h.c1 > 1 && ret1h.c3 != 1 && ret15m.c1 > 1 && ret15m.c3 != 1 && ret1m.c2 == 2 && sellstatus == 1) {
+            location = getLocation()
+        } else if (ret1h.c1 > 1 && ret1h.c3 != 1 && ret15m.c2 == 2 && ret15m.c3 != 1 && ret1m.c1 == 0) {
+            sell;
+        } else if () {
+
+        }
+         
+
+
+    } else {
+        if (ret1h.c1 > 1) {
+            if (ret15m.c1 > 1) {
+
+            } else {
+
+            }
+            if (ret15m.c2 > 1) {
+
+            } else {
+
+            }
+        } else {
+            if (ret15m.c1 > 1) {
+
+            } else {
+
+            }
+            if (ret15m.c2 > 1) {
+
+            } else {
 
             }
         }
 
+        if (ret1h.c2 > 1) {
+            if (ret15m.c1 > 1) {
+
+            } else {
+
+            }
+            if (ret15m.c2 > 1) {
+
+            } else {
+
+            }
+        } else {
+            if (ret15m.c1 > 1) {
+
+            } else {
+
+            }
+            if (ret15m.c2 > 1) {
+
+            } else {
+
+            }
+        }
     }
-};
+} else {
+    if (ret15m.direction == 1) {
+        if (ret1h.c1 > 1) {
+            if (ret15m.c1 > 1) {
+
+            } else {
+
+            }
+            if (ret15m.c2 > 1) {
+
+            } else {
+
+            }
+        } else {
+            if (ret15m.c1 > 1) {
+
+            } else {
+
+            }
+            if (ret15m.c2 > 1) {
+
+            } else {
+
+            }
+        }
+
+        if (ret1h.c2 > 1) {
+            if (ret15m.c1 > 1) {
+
+            } else {
+
+            }
+            if (ret15m.c2 > 1) {
+
+            } else {
+
+            }
+        } else {
+            if (ret15m.c1 > 1) {
+
+            } else {
+
+            }
+            if (ret15m.c2 > 1) {
+
+            } else {
+
+            }
+        }
+    } else {
+        if (ret1h.c1 > 1) {
+            if (ret15m.c1 > 1) {
+
+            } else {
+
+            }
+            if (ret15m.c2 > 1) {
+
+            } else {
+
+            }
+        } else {
+            if (ret15m.c1 > 1) {
+
+            } else {
+
+            }
+            if (ret15m.c2 > 1) {
+
+            } else {
+
+            }
+        }
+
+        if (ret1h.c2 > 1) {
+            if (ret15m.c1 > 1) {
+
+            } else {
+
+            }
+            if (ret15m.c2 > 1) {
+
+            } else {
+
+            }
+        } else {
+            if (ret15m.c1 > 1) {
+
+            } else {
+
+            }
+            if (ret15m.c2 > 1) {
+
+            } else {
+
+            }
+        }
+    }
+}
+
 
 
 a=2;
